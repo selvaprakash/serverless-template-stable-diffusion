@@ -1,6 +1,6 @@
 import torch
 from torch import autocast
-from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
+from diffusers import DiffusionPipeline, EulerDiscreteScheduler
 import base64
 from io import BytesIO
 import os
@@ -11,10 +11,11 @@ def init():
     global model
     HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
     
-    # this will substitute the default PNDM scheduler for K-LMS  
-    lms = LMSDiscreteScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear")
+    repo_id = "stabilityai/stable-diffusion-2"
 
-    model = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", scheduler=lms, use_auth_token=HF_AUTH_TOKEN).to("cuda")
+    scheduler = EulerDiscreteScheduler.from_pretrained(repo_id, subfolder="scheduler", prediction_type="v_prediction")
+
+    model = DiffusionPipeline.from_pretrained(repo_id, torch_dtype=torch.float16, revision="fp16", scheduler=scheduler, use_auth_token=HF_AUTH_TOKEN).to("cuda")
 
 # Inference is ran for every server call
 # Reference your preloaded global model variable here.
@@ -23,8 +24,8 @@ def inference(model_inputs:dict) -> dict:
 
     # Parse out your arguments
     prompt = model_inputs.get('prompt', None)
-    height = model_inputs.get('height', 512)
-    width = model_inputs.get('width', 512)
+    height = model_inputs.get('height', 768)
+    width = model_inputs.get('width', 768)
     num_inference_steps = model_inputs.get('num_inference_steps', 50)
     guidance_scale = model_inputs.get('guidance_scale', 7.5)
     input_seed = model_inputs.get("seed",None)
@@ -39,7 +40,7 @@ def inference(model_inputs:dict) -> dict:
     
     # Run the model
     with autocast("cuda"):
-        image = model(prompt,height=height,width=width,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,generator=generator)["sample"][0]
+        image = model(prompt,height=height,width=width,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,generator=generator).images[0]
     
     buffered = BytesIO()
     image.save(buffered,format="JPEG")
