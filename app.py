@@ -9,7 +9,7 @@ import os
 # Load your model to GPU as a global variable here using the variable name "model"
 def init():
     global model
-    HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
+    HF_AUTH_TOKEN = os.getenv("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")
     
     repo_id = "stabilityai/stable-diffusion-2"
 
